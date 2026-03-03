@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 
 import subprocess
@@ -7,8 +8,7 @@ import os
 
 APP_NAME = "ATIF Downloader v5"
 
-
-# Simple Colors
+# Terminal Colors
 GREEN = "\033[92m"
 RED = "\033[91m"
 YELLOW = "\033[93m"
@@ -56,7 +56,7 @@ def download_video(link, format_code):
             "yt-dlp",
             "-f", format_code,
             "--merge-output-format", "mp4",
-            "--newline",  # cleaner progress
+            "--newline",
             link
         ]
 
@@ -82,6 +82,7 @@ def main():
 
         if not link:
             print(RED + "❌ Invalid Link!" + RESET)
+            input("\nPress Enter to continue...")
             continue
 
         show_quality_menu()
