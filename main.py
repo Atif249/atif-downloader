@@ -1,12 +1,13 @@
-
 #!/usr/bin/env python3
 
 import subprocess
 import sys
 import shutil
 import os
+import time
+import threading
 
-APP_NAME = "ATIF Downloader v5"
+APP_NAME = "ATIF Downloader v7"
 
 # Terminal Colors
 GREEN = "\033[92m"
@@ -19,86 +20,98 @@ RESET = "\033[0m"
 def banner():
     os.system("clear")
     print(CYAN + "=" * 50)
-    print(f"{APP_NAME.center(50)}")
+    print(APP_NAME.center(50))
     print("=" * 50 + RESET)
 
 
 def check_yt_dlp():
     if not shutil.which("yt-dlp"):
-        print(RED + "\n[ERROR] yt-dlp installed nahi hai!" + RESET)
-        print("Install karo:")
-        print("Termux: pkg install yt-dlp")
-        print("Kali/Linux: sudo apt install yt-dlp")
+        print(RED + "\nyt-dlp installed nahi hai!" + RESET)
         sys.exit(1)
 
 
-def show_quality_menu():
-    print(YELLOW + "\nSelect Video Quality:" + RESET)
-    print("1. 360p")
-    print("2. 720p")
-    print("3. 1080p")
-    print("4. Best Available")
+def get_download_folder():
+    home = os.path.expanduser("~")
+
+    if os.path.exists(os.path.join(home, "Desktop")):
+        folder = os.path.join(home, "Desktop", "ATIF_Downloader")
+    else:
+        folder = os.path.join(home, "Downloads", "ATIF_Downloader")
+
+    os.makedirs(folder, exist_ok=True)
+    return folder
 
 
-def get_format(choice):
-    formats = {
-        "1": "18",
-        "2": "22",
-        "3": "137+140",
-        "4": "bestvideo+bestaudio"
-    }
-    return formats.get(choice)
+def show_formats(link):
+    print(YELLOW + "\nFetching available qualities...\n" + RESET)
+    subprocess.run(["yt-dlp", "-F", link])
 
 
-def download_video(link, format_code):
-    try:
-        command = [
-            "yt-dlp",
-            "-f", format_code,
-            "--merge-output-format", "mp4",
-            "--newline",
-            link
-        ]
+# Stylish loading animation
+def loading_animation(stop_event):
+    symbols = ["|", "/", "-", "\\"]
+    i = 0
 
-        print(GREEN + "\n⏳ Download Starting...\n" + RESET)
-        subprocess.run(command, check=True)
+    while not stop_event.is_set():
+        sys.stdout.write(
+            CYAN + f"\rPreparing Download {symbols[i % len(symbols)]}" + RESET
+        )
+        sys.stdout.flush()
+        i += 1
+        time.sleep(0.2)
 
-        print(GREEN + "\n✅ Download Completed Successfully!" + RESET)
 
-    except subprocess.CalledProcessError:
-        print(RED + "\n❌ Download Failed!" + RESET)
+def download_video(link, format_code, folder):
 
-    except KeyboardInterrupt:
-        print(YELLOW + "\n\n⚠ Download Cancelled by User!" + RESET)
+    stop_event = threading.Event()
+    t = threading.Thread(target=loading_animation, args=(stop_event,))
+    t.start()
+
+    time.sleep(3)   # animation duration
+    stop_event.set()
+    t.join()
+
+    print(GREEN + "\n\n🚀 Download Started...\n" + RESET)
+
+    command = [
+        "yt-dlp",
+        "-f", format_code,
+        "-o", f"{folder}/%(title)s.%(ext)s",
+        "--merge-output-format", "mp4",
+        link
+    ]
+
+    subprocess.run(command)
+
+    print(GREEN + f"\n✅ Download Completed!\nSaved in: {folder}" + RESET)
 
 
 def main():
+
     check_yt_dlp()
 
     while True:
+
         banner()
 
-        link = input("\nPaste Video Link Here: ").strip()
+        link = input("\nPaste Video Link: ").strip()
 
         if not link:
-            print(RED + "❌ Invalid Link!" + RESET)
-            input("\nPress Enter to continue...")
+            print(RED + "Invalid link!" + RESET)
             continue
 
-        show_quality_menu()
-        choice = input("\nEnter option (1-4): ").strip()
+        show_formats(link)
 
-        format_code = get_format(choice)
+        format_code = input(
+            CYAN + "\nEnter format code: " + RESET
+        ).strip()
 
-        if not format_code:
-            print(RED + "❌ Invalid Selection!" + RESET)
-            input("\nPress Enter to continue...")
-            continue
+        folder = get_download_folder()
 
-        download_video(link, format_code)
+        download_video(link, format_code, folder)
 
         again = input(
-            CYAN + "\nDo you want to download another video? (y/n): " + RESET
+            CYAN + "\nDownload another video? (y/n): " + RESET
         ).lower()
 
         if again != "y":
