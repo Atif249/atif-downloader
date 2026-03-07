@@ -1,89 +1,96 @@
 #!/usr/bin/env python3
 
 import subprocess
-import sys
 import shutil
 import os
-import time
-import threading
+import sys
 
-APP_NAME = "ATIF Downloader v7"
+APP_NAME = "ATIF Downloader v8"
 
-# Terminal Colors
-GREEN = "\033[92m"
-RED = "\033[91m"
-YELLOW = "\033[93m"
-CYAN = "\033[96m"
-RESET = "\033[0m"
+GREEN="\033[92m"
+RED="\033[91m"
+CYAN="\033[96m"
+YELLOW="\033[93m"
+RESET="\033[0m"
 
 
 def banner():
     os.system("clear")
-    print(CYAN + "=" * 50)
+    print(CYAN + "="*50)
     print(APP_NAME.center(50))
-    print("=" * 50 + RESET)
+    print("="*50 + RESET)
 
 
 def check_yt_dlp():
     if not shutil.which("yt-dlp"):
-        print(RED + "\nyt-dlp installed nahi hai!" + RESET)
-        sys.exit(1)
+        print(RED+"yt-dlp install nahi hai"+RESET)
+        sys.exit()
 
 
-def get_download_folder():
-    home = os.path.expanduser("~")
+def get_folder():
 
-    if os.path.exists(os.path.join(home, "Desktop")):
-        folder = os.path.join(home, "Desktop", "ATIF_Downloader")
+    home=os.path.expanduser("~")
+
+    if os.path.exists(home+"/Desktop"):
+        path=home+"/Desktop/ATIF_Downloader"
     else:
-        folder = os.path.join(home, "Downloads", "ATIF_Downloader")
+        path=home+"/Downloads/ATIF_Downloader"
 
-    os.makedirs(folder, exist_ok=True)
-    return folder
+    os.makedirs(path,exist_ok=True)
 
-
-def show_formats(link):
-    print(YELLOW + "\nFetching available qualities...\n" + RESET)
-    subprocess.run(["yt-dlp", "-F", link])
+    return path
 
 
-# Stylish loading animation
-def loading_animation(stop_event):
-    symbols = ["|", "/", "-", "\\"]
-    i = 0
+def get_available_qualities(link):
 
-    while not stop_event.is_set():
-        sys.stdout.write(
-            CYAN + f"\rPreparing Download {symbols[i % len(symbols)]}" + RESET
-        )
-        sys.stdout.flush()
-        i += 1
-        time.sleep(0.2)
+    result=subprocess.run(
+        ["yt-dlp","-F",link],
+        capture_output=True,
+        text=True
+    )
+
+    lines=result.stdout.splitlines()
+
+    qualities={}
+
+    for line in lines:
+
+        if "360p" in line and "360p" not in qualities:
+            qualities["1"]=("360p",line.split()[0])
+
+        elif "720p" in line and "720p" not in qualities:
+            qualities["2"]=("720p",line.split()[0])
+
+        elif "1080p" in line and "1080p" not in qualities:
+            qualities["3"]=("1080p",line.split()[0])
+
+    return qualities
 
 
-def download_video(link, format_code, folder):
+def show_menu(q):
 
-    stop_event = threading.Event()
-    t = threading.Thread(target=loading_animation, args=(stop_event,))
-    t.start()
+    print(YELLOW+"\nAvailable Qualities:\n"+RESET)
 
-    time.sleep(3)   # animation duration
-    stop_event.set()
-    t.join()
+    for key,val in q.items():
+        print(f"{key}. {val[0]}")
 
-    print(GREEN + "\n\n🚀 Download Started...\n" + RESET)
 
-    command = [
+def download(link,format_code,folder):
+
+    print(GREEN+"\nDownloading...\n"+RESET)
+
+    cmd=[
         "yt-dlp",
-        "-f", format_code,
-        "-o", f"{folder}/%(title)s.%(ext)s",
-        "--merge-output-format", "mp4",
+        "-f",format_code,
+        "-o",f"{folder}/%(title)s.%(ext)s",
+        "--merge-output-format","mp4",
         link
     ]
 
-    subprocess.run(command)
+    subprocess.run(cmd)
 
-    print(GREEN + f"\n✅ Download Completed!\nSaved in: {folder}" + RESET)
+    print(GREEN+"\nDownload Completed\n"+RESET)
+    print("Saved in:",folder)
 
 
 def main():
@@ -94,30 +101,35 @@ def main():
 
         banner()
 
-        link = input("\nPaste Video Link: ").strip()
+        link=input("Paste Video Link: ").strip()
 
-        if not link:
-            print(RED + "Invalid link!" + RESET)
+        qualities=get_available_qualities(link)
+
+        if not qualities:
+            print(RED+"No supported quality found"+RESET)
+            input("Enter press...")
             continue
 
-        show_formats(link)
+        show_menu(qualities)
 
-        format_code = input(
-            CYAN + "\nEnter format code: " + RESET
-        ).strip()
+        choice=input("\nSelect quality: ")
 
-        folder = get_download_folder()
+        if choice not in qualities:
+            print(RED+"Invalid option"+RESET)
+            input("Enter press...")
+            continue
 
-        download_video(link, format_code, folder)
+        format_code=qualities[choice][1]
 
-        again = input(
-            CYAN + "\nDownload another video? (y/n): " + RESET
-        ).lower()
+        folder=get_folder()
 
-        if again != "y":
-            print(GREEN + "\nThanks for using ATIF Downloader ❤️" + RESET)
+        download(link,format_code,folder)
+
+        again=input("\nDownload another video? (y/n): ")
+
+        if again.lower()!="y":
             break
 
 
-if __name__ == "__main__":
+if __name__=="__main__":
     main()
