@@ -7,7 +7,7 @@ import sys
 import time
 import threading
 
-APP_NAME = "ATIF Downloader v10"
+APP_NAME = "ATIF Downloader v11 PRO"
 
 # Colors
 GREEN="\033[92m"
@@ -24,20 +24,22 @@ def banner():
     print("="*50+RESET)
 
 
-def check_yt_dlp():
+def check_dependencies():
+
     if not shutil.which("yt-dlp"):
         print(RED+"yt-dlp install nahi hai"+RESET)
-        print("Install karo:")
-        print("Termux: pkg install yt-dlp")
-        print("Linux: sudo apt install yt-dlp")
+        print("Install karo: sudo apt install yt-dlp")
+        sys.exit()
+
+    if not shutil.which("ffmpeg"):
+        print(RED+"ffmpeg install nahi hai (audio merge ke liye zaroori)"+RESET)
+        print("Install karo: sudo apt install ffmpeg")
         sys.exit()
 
 
 def validate_link(link):
 
-    if "youtube.com" in link or "youtu.be" in link:
-        return True
-    return False
+    return "youtube.com" in link or "youtu.be" in link
 
 
 def get_folder():
@@ -115,7 +117,7 @@ def download(link,format_code,folder):
     t=threading.Thread(target=loading_animation,args=(stop,))
     t.start()
 
-    time.sleep(3)
+    time.sleep(2)
 
     stop.set()
     t.join()
@@ -124,8 +126,8 @@ def download(link,format_code,folder):
 
     cmd=[
         "yt-dlp",
-        "-f",format_code,
-        "-o",f"{folder}/%(title)s.%(ext)s",
+        "-f", f"{format_code}+bestaudio",   # 🔥 FIXED
+        "-o", f"{folder}/%(title)s.%(ext)s",
         "--merge-output-format","mp4",
         link
     ]
@@ -138,7 +140,7 @@ def download(link,format_code,folder):
 
 def main():
 
-    check_yt_dlp()
+    check_dependencies()
 
     while True:
 
@@ -148,9 +150,7 @@ def main():
 
         if not validate_link(link):
 
-            print(RED+"\n⚠ Warning: Ye YouTube link nahi hai!"+RESET)
-            print(YELLOW+"Please sahi YouTube video link add karo\n"+RESET)
-
+            print(RED+"\n⚠ Invalid YouTube Link!"+RESET)
             input("Press Enter...")
             continue
 
